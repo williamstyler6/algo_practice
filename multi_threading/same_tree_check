@@ -1,0 +1,74 @@
+import os
+import threading
+
+class TreeNode:
+    def __init__(self, val):
+        self.val = val
+        self.left = None
+        self.right = None
+
+class Solution:
+    def __init__(self):
+        self.isSame = True
+
+    def is_same_tree(self, p, q):
+        self.isSame = True
+        num_threads = os.cpu_count()
+        return self.is_same_tree_multi_threaded(p, q, num_threads)
+
+    def is_same_tree_multi_threaded(self, p, q, num_threads):
+        # p and q are both None
+        if not p and not q:
+            return True
+        # one of p and q is None
+        if not p or not q:
+            return False
+        # one of p and q has a different value
+        if p.val != q.val:
+            return False
+
+        # if we can start more threads, we will spawn a new thread to check the
+        # right subtree, otherwise we will do everything in the current thread
+        if num_threads > 0:
+            # spawn a separate thread for checking the right sub-tree
+            def check_right_subtree():
+                nonlocal p, q, num_threads
+                self.isSame &= self.is_same_tree_multi_threaded(p.right, q.right, num_threads // 2)
+
+            t1 = threading.Thread(target=check_right_subtree)
+            t1.start()
+
+            # check the left sub-tree in the current thread
+            self.isSame &= self.is_same_tree_multi_threaded(p.left, q.left, num_threads // 2)
+
+            t1.join()  # wait for the thread checking the right sub-tree
+        else:  # do everything in the current thread
+            self.isSame &= self.is_same_tree_multi_threaded(p.right, q.right, 0) and self.is_same_tree_multi_threaded(p.left, q.left, 0)
+
+        return self.isSame
+
+
+if __name__ == "__main__":
+    p = TreeNode(10)
+    p.left = TreeNode(4)
+    p.left.left = TreeNode(1)
+    p.right = TreeNode(15)
+    p.right.left = TreeNode(14)
+
+    q = TreeNode(10)
+    q.left = TreeNode(4)
+    q.left.left = TreeNode(1)
+    q.right = TreeNode(15)
+    q.right.left = TreeNode(14)
+
+    sol = Solution()
+    print(sol.is_same_tree(p, q))
+
+    q.right.right = TreeNode(20)
+    print(sol.is_same_tree(p, q))
+
+    p.right.right = TreeNode(20)
+    print(sol.is_same_tree(p, q))
+
+    p.left.val = 9
+    print(sol.is_same_tree(p, q))
